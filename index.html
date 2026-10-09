@@ -1,0 +1,735 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Backyard Sweep: find mosquito breeding spots</title>
+<meta name="description" content="Walk around your home, photograph anything that could hold water, and Backyard Sweep flags likely mosquito breeding spots.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232E7D4F'/%3E%3Cpath d='M10 6v21' stroke='%23fff' stroke-width='2.5' stroke-linecap='round'/%3E%3Cpath d='M12 7h12l-4 5 4 5H12z' fill='%23FFC83D'/%3E%3C/svg%3E">
+<script>
+  /* set the theme before first paint so there is no flash */
+  try{
+    var t = localStorage.getItem('sweep-theme');
+    if(!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    document.documentElement.dataset.theme = t;
+  }catch(e){}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+  /* ============ design tokens ============ */
+  :root{
+    /* palette: meadow, sky, sunlight, soil */
+    --bg:#F1F6F2;
+    --surface:#FFFFFF;
+    --surface-2:#E4EEE7;
+    --ink:#16301F;
+    --mute:#4C6455;
+    --line:#C9DACE;
+    --primary:#2E7D4F;
+    --primary-ink:#FFFFFF;
+    --primary-strong:#1F6A43;
+    --accent:#FFC83D;
+    --accent-ink:#16301F;
+    --sky:#CDE7F4;
+    --hill-back:#9DCB9A;
+    --hill-front:#5FA66B;
+    --pine:#2F7A4C;
+    --sun:#FFC83D;
+    --trail:#F6F1DC;
+    --soil:#7A573C;
+    --danger-bg:#FDECE4;
+    --danger-line:#D9622B;
+    --shadow-1:0 1px 2px rgba(22,48,31,.08),0 6px 18px rgba(22,48,31,.08);
+    --shadow-2:0 2px 4px rgba(22,48,31,.12),0 12px 28px rgba(22,48,31,.16);
+
+    /* spacing, radius, type */
+    --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px; --s7:48px; --s8:64px;
+    --r-sm:8px; --r-md:14px; --r-lg:24px; --r-pill:999px;
+    --t-sm:.9375rem; --t-base:1.0625rem; --t-lg:1.2rem; --t-xl:1.6rem;
+    --t-2xl:clamp(2.1rem,5.4vw,3.7rem);
+    --display:"Bricolage Grotesque","Trebuchet MS",system-ui,sans-serif;
+    --body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+    --fast:.15s; --med:.22s;
+    color-scheme:light;
+  }
+  /* dark = calm night forest, not an inversion */
+  :root[data-theme="dark"]{
+    --bg:#0C1710;
+    --surface:#13241A;
+    --surface-2:#1B3224;
+    --ink:#E7F3EA;
+    --mute:#9DB9A6;
+    --line:#2A4636;
+    --primary:#67C890;
+    --primary-ink:#0C1710;
+    --primary-strong:#7BD3A0;
+    --accent:#FFD166;
+    --accent-ink:#0C1710;
+    --sky:#17324A;
+    --hill-back:#1F4A3A;
+    --hill-front:#163D2D;
+    --pine:#0E2A1F;
+    --sun:#FFD166;
+    --trail:#6F8F7B;
+    --soil:#C9A27C;
+    --danger-bg:#3A1D14;
+    --danger-line:#E8794A;
+    --shadow-1:0 1px 2px rgba(0,0,0,.4),0 6px 18px rgba(0,0,0,.3);
+    --shadow-2:0 2px 4px rgba(0,0,0,.5),0 12px 28px rgba(0,0,0,.45);
+    color-scheme:dark;
+  }
+
+  /* ============ base ============ */
+  *{box-sizing:border-box}
+  [hidden]{display:none !important}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);font:400 var(--t-base)/1.55 var(--body);transition:background-color var(--med),color var(--med)}
+  a{color:var(--primary-strong);text-underline-offset:3px}
+  :focus-visible{outline:3px solid var(--ink);outline-offset:3px;border-radius:var(--r-sm)}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+  .skip{position:absolute;left:12px;top:-80px;z-index:30;background:var(--primary);color:var(--primary-ink);padding:12px 16px;border-radius:var(--r-sm);font-weight:700}
+  .skip:focus{top:12px}
+
+  @keyframes enter{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes shimmer{to{background-position:-200% 0}}
+  .enter{animation:enter var(--med) ease-out both}
+
+  /* ============ header ============ */
+  .top{display:flex;align-items:center;justify-content:space-between;gap:var(--s4);padding:var(--s4) 0}
+  .brand{display:flex;align-items:center;gap:10px;font:800 1.25rem var(--display);color:var(--ink);text-decoration:none;letter-spacing:-.01em}
+  .brand svg{width:32px;height:32px}
+  .top-r{display:flex;align-items:center;gap:var(--s3)}
+  .top-r a{font-size:var(--t-sm)}
+  .theme{width:44px;height:44px;display:grid;place-items:center;border-radius:var(--r-pill);border:2px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;transition:transform var(--fast)}
+  .theme:hover{border-color:var(--primary)}
+  .theme:active{transform:scale(.94)}
+  .theme svg{width:22px;height:22px}
+  .theme .i-sun{display:none}
+  :root[data-theme="dark"] .theme .i-sun{display:block}
+  :root[data-theme="dark"] .theme .i-moon{display:none}
+
+  /* ============ hero ============ */
+  .hero{background:var(--sky);border-radius:var(--r-lg);overflow:hidden;margin-top:var(--s2)}
+  .hero-text{padding:clamp(24px,5vw,52px) clamp(20px,4vw,52px) var(--s4)}
+  h1{font:800 var(--t-2xl)/1.04 var(--display);letter-spacing:-.025em;margin:0 0 var(--s4);max-width:17ch;text-wrap:balance}
+  .lede{margin:0;max-width:56ch;font-size:var(--t-lg);color:var(--mute)}
+  .scene{display:block;width:100%;height:clamp(110px,18vw,200px)}
+  .scene .sun{fill:var(--sun)}
+  .scene .sun-halo{fill:var(--sun);opacity:.3}
+  .scene .hill-back{fill:var(--hill-back)}
+  .scene .hill-front{fill:var(--hill-front)}
+  .scene .pines path{fill:var(--pine)}
+  .scene .trail{fill:none;stroke:var(--trail);stroke-width:5;stroke-linecap:round;stroke-dasharray:1 12}
+  .scene .pole{stroke:var(--ink);stroke-width:3;stroke-linecap:round}
+  .scene .pennant{fill:var(--accent)}
+
+
+  /* ============ go outside check ============ */
+  .sky-card{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--s4);margin-top:var(--s5);
+    padding:var(--s4) var(--s5);background:var(--surface);border:2px solid var(--line);border-radius:var(--r-md)}
+  .sky-copy{flex:1 1 280px;min-width:0}
+  .sky-head{margin:0;font:800 1.15rem/1.2 var(--display)}
+  .sky-body{margin:4px 0 0;color:var(--mute);font-size:var(--t-sm)}
+  .sky-fine{margin:6px 0 0;color:var(--mute);font-size:.8125rem}
+
+  /* ============ tool ============ */
+  .tool{display:grid;gap:var(--s5);margin:var(--s6) 0 var(--s8);scroll-margin-top:var(--s4)}
+  @media (min-width:900px){.tool{grid-template-columns:minmax(0,1.55fr) minmax(310px,1fr);align-items:start}}
+
+  .drop{border:2.5px dashed var(--primary);border-radius:var(--r-lg);background:var(--surface);
+    min-height:clamp(260px,44vw,450px);display:grid;place-content:center;justify-items:center;gap:var(--s4);padding:var(--s5);text-align:center;
+    transition:background-color var(--fast)}
+  .drop.over{background:var(--surface-2);border-style:solid}
+  .drop p{margin:0;color:var(--mute);max-width:36ch}
+  .drop .big{font:800 clamp(1.35rem,3vw,1.8rem)/1.15 var(--display);color:var(--ink);letter-spacing:-.01em}
+  .drop .leaf{width:64px;height:64px}
+  .btns{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+  .btn{font:700 1rem var(--body);border-radius:var(--r-md);padding:13px 20px;min-height:48px;cursor:pointer;
+    border:2px solid var(--primary);background:var(--primary);color:var(--primary-ink);
+    transition:transform var(--fast),background-color var(--fast),box-shadow var(--fast)}
+  .btn:hover{box-shadow:var(--shadow-1);filter:brightness(1.06)}
+  .btn:active{transform:scale(.98)}
+  .btn.ghost{background:transparent;color:var(--primary-strong)}
+  .btn.ghost:hover{background:var(--surface-2);filter:none}
+
+  .viewer{position:relative;border-radius:var(--r-md);overflow:hidden;background:#07120C;box-shadow:var(--shadow-1)}
+  .viewer canvas{display:block;width:100%;height:auto}
+  .busy{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--s4);
+    background:rgba(7,18,12,.78);color:#fff;text-align:center;padding:var(--s5)}
+  .busy p{margin:0;max-width:30ch}
+  .ring{width:40px;height:40px;border-radius:50%;border:4px solid rgba(255,255,255,.3);border-top-color:var(--accent);animation:spin .9s linear infinite}
+
+  .error{margin:0 0 var(--s4);padding:var(--s3) var(--s4);border-left:5px solid var(--danger-line);background:var(--danger-bg);color:var(--ink);border-radius:0 var(--r-sm) var(--r-sm) 0}
+
+  /* ============ results panel ============ */
+  .panel{background:var(--surface);border:2px solid var(--line);border-radius:var(--r-md);padding:var(--s5);box-shadow:var(--shadow-1)}
+  .panel h2{font:800 var(--t-xl)/1.15 var(--display);letter-spacing:-.01em;margin:0 0 var(--s3)}
+  .empty{display:grid;gap:var(--s2);justify-items:start}
+  .empty svg{width:72px;height:72px}
+  .empty .big{font:800 1.25rem/1.2 var(--display);margin:0}
+  .empty p{margin:0;color:var(--mute)}
+  .status{font-size:1.1rem;font-weight:700;margin:0 0 var(--s4)}
+  .slider{display:grid;gap:var(--s2);margin:0 0 var(--s2)}
+  .slider label{font-size:var(--t-sm);color:var(--mute)}
+  .slider input{width:100%;accent-color:var(--primary);min-height:44px;margin:0}
+  .finds{list-style:none;margin:var(--s3) 0 0;padding:0}
+  .finds li{padding:var(--s4) var(--s2);border-top:3px dotted var(--line);border-radius:var(--r-sm)}
+  .finds li:hover,.finds li:focus-visible{background:var(--surface-2)}
+  .find-head{display:flex;align-items:center;gap:var(--s3)}
+  .find-head strong{font-size:1.1rem}
+  .n{display:inline-grid;place-items:center;min-width:2.3rem;height:2rem;padding:0 .95rem 0 .55rem;background:var(--accent);color:var(--accent-ink);
+    font:800 1rem var(--display);clip-path:polygon(0 0,100% 0,84% 50%,100% 100%,0 100%)}
+  .tip{margin:6px 0 0;color:var(--mute);font-size:1rem}
+  .note{margin:var(--s4) 0 0;padding:2px 0 2px var(--s3);border-left:4px solid var(--accent);color:var(--mute);font-size:var(--t-sm)}
+  .actions{display:grid;gap:var(--s2);margin-top:var(--s4)}
+
+  .skel{display:grid;gap:var(--s3)}
+  .skel i{display:block;height:18px;border-radius:var(--r-sm);background:linear-gradient(90deg,var(--surface-2) 25%,var(--line) 50%,var(--surface-2) 75%);background-size:200% 100%;animation:shimmer 1.4s linear infinite}
+  .skel i:nth-child(1){width:70%;height:24px}
+  .skel i:nth-child(3){width:85%}
+  .skel i:nth-child(5){width:60%}
+
+  .progress{margin-top:var(--s4);padding-top:var(--s4);border-top:3px dotted var(--line);display:grid;gap:var(--s2)}
+  .pips{display:flex;gap:var(--s2)}
+  .pip{width:18px;height:18px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid var(--line);background:transparent}
+  .pip.on{background:var(--primary);border-color:var(--primary)}
+  .progress p{margin:0;font-size:var(--t-sm);color:var(--mute)}
+
+  /* ============ about + footer ============ */
+  .about{display:grid;gap:var(--s6);padding:var(--s6) 0 var(--s7);border-top:3px dotted var(--line)}
+  @media (min-width:900px){.about{grid-template-columns:1fr 1fr;gap:56px}}
+  .about h2{font:800 1.6rem/1.15 var(--display);letter-spacing:-.015em;margin:0 0 var(--s3)}
+  .about p,.about li{max-width:62ch}
+  .about p{margin:0 0 var(--s3)}
+  .about ol{margin:0;padding-left:1.3rem;display:grid;gap:10px}
+  footer{border-top:3px dotted var(--line);padding:var(--s5) 0 var(--s7);color:var(--mute);font-size:var(--t-sm)}
+  footer p{margin:0 0 var(--s2);max-width:80ch}
+
+  /* ============ toasts ============ */
+  .toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));
+    display:grid;gap:var(--s2);width:min(92vw,420px);z-index:20}
+  .toast{display:flex;align-items:center;justify-content:space-between;gap:var(--s2);padding:2px 2px 2px var(--s4);
+    border-radius:var(--r-md);background:var(--ink);color:var(--bg);box-shadow:var(--shadow-2);animation:enter var(--med) ease-out both}
+  .toast.error{background:var(--danger-bg);color:var(--ink);border-left:5px solid var(--danger-line)}
+  .toast-x{min-width:44px;min-height:44px;border:0;background:transparent;color:inherit;font-size:1.5rem;line-height:1;cursor:pointer;border-radius:var(--r-sm)}
+  .toast-x:focus-visible{outline-color:currentColor}
+
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation:none !important;transition:none !important}
+    .ring{border-top-color:rgba(255,255,255,.3);border-right-color:var(--accent)}
+  }
+</style>
+</head>
+<body>
+<a class="skip" href="#tool">Skip to the scanner</a>
+<noscript><p style="padding:16px;margin:0;background:#FDECE4;color:#16301F">Backyard Sweep needs JavaScript to scan photos.</p></noscript>
+
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="/">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--primary)"/><path d="M10 6v21" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/><path d="M12 7h12l-4 5 4 5H12z" fill="#FFC83D"/></svg>
+      Backyard Sweep
+    </a>
+    <div class="top-r">
+      <a href="https://github.com/KK-Dev0/mosquito-breeding-detector">Source code</a>
+      <button type="button" class="theme" id="theme" aria-label="Switch to dark mode">
+        <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-text">
+        <h1>Find the standing water before the mosquitoes do.</h1>
+        <p class="lede">Walk around your home. Photograph anything that could hold water. Backyard Sweep flags the likely breeding spots and tells you what to do about each one.</p>
+      </div>
+      <svg class="scene" viewBox="0 0 1200 220" preserveAspectRatio="xMaxYMax slice" aria-hidden="true" focusable="false">
+        <circle class="sun-halo" cx="1010" cy="78" r="62"/>
+        <circle class="sun" cx="1010" cy="78" r="40"/>
+        <path class="hill-back" d="M0 150 C150 92 320 112 480 142 S800 154 1000 108 S1150 92 1200 112 V220 H0Z"/>
+        <g class="pines">
+          <path d="M118 152 l16 30 h-32z"/><path d="M150 158 l12 24 h-24z"/><path d="M300 142 l14 28 h-28z"/>
+        </g>
+        <path class="hill-front" d="M0 192 C200 146 380 184 600 174 S980 132 1200 172 V220 H0Z"/>
+        <path class="trail" d="M560 220 C600 196 690 192 750 176 S860 150 900 128"/>
+        <path class="pole" d="M900 128 V96"/>
+        <path class="pennant" d="M901 97 h26 l-8 8 8 8 h-26z"/>
+      </svg>
+    </section>
+
+    <section class="sky-card" aria-label="Go outside check">
+      <div class="sky-copy" aria-live="polite">
+        <p class="sky-head" id="skyHead">Is it a good time for a lap?</p>
+        <p class="sky-body" id="skyBody">Check the sky for a quick go or wait call before you walk around your home.</p>
+        <p class="sky-fine">The button sends your location, rounded to about 1 km, to Open-Meteo to read the weather. Your photos never go there, and this page stores nothing about it.</p>
+      </div>
+      <button type="button" class="btn ghost" id="skyBtn">Check the sky</button>
+    </section>
+
+    <section class="tool" id="tool" aria-label="Photo scanner">
+      <div class="stage">
+        <p class="error" id="error" role="alert" hidden></p>
+
+        <div class="drop" id="drop">
+          <svg class="leaf" viewBox="0 0 64 64" aria-hidden="true"><path d="M12 52C12 28 28 12 54 10c0 26-14 42-38 42" fill="var(--primary)"/><path d="M14 50C26 38 36 28 46 18" stroke="var(--surface)" stroke-width="3" stroke-linecap="round" fill="none"/></svg>
+          <p class="big">Spot something that could hold water? Snap it.</p>
+          <p>Daylight and about a metre away works best. You can also drop a photo here.</p>
+          <div class="btns">
+            <button type="button" class="btn" id="btnCam">Take a photo</button>
+            <button type="button" class="btn ghost" id="btnLib">Choose a photo</button>
+          </div>
+        </div>
+
+        <div class="viewer" id="viewer" hidden>
+          <canvas id="view" role="img" aria-label="Your photo"></canvas>
+          <div class="busy" id="busy" hidden>
+            <div class="ring" aria-hidden="true"></div>
+            <p id="busyText">Scanning your photo.</p>
+          </div>
+        </div>
+
+        <input class="sr" type="file" id="cam" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true">
+        <input class="sr" type="file" id="lib" accept="image/*" tabindex="-1" aria-hidden="true">
+      </div>
+
+      <aside class="panel" id="panel" aria-live="polite">
+        <h2>Your sweep</h2>
+
+        <div class="empty" id="empty">
+          <svg viewBox="0 0 72 72" aria-hidden="true"><circle cx="52" cy="22" r="10" fill="var(--sun)"/><path d="M0 56 C14 38 30 44 42 50 S62 46 72 40 V72 H0Z" fill="var(--hill-front)"/><path d="M0 64 C16 54 34 62 72 54 V72 H0Z" fill="var(--hill-back)"/></svg>
+          <p class="big">Nothing scanned yet. Go touch some grass.</p>
+          <p>Results show up here, with a tip for every spot.</p>
+        </div>
+
+        <div class="skel" id="loading" aria-hidden="true" hidden><i></i><i></i><i></i><i></i><i></i></div>
+
+        <div id="results" hidden>
+          <p class="status" id="status"></p>
+          <div class="slider">
+            <label for="thr">Show spots the model is at least <output id="thrOut">25%</output> sure about</label>
+            <input type="range" id="thr" min="10" max="90" step="5" value="25">
+          </div>
+          <ul class="finds" id="finds"></ul>
+          <p class="note">Backyard Sweep finds containers that can hold water. It can't tell if there is water inside, so check each one by eye.</p>
+          <div class="actions">
+            <button type="button" class="btn" id="copy">Copy to-do list</button>
+            <button type="button" class="btn ghost" id="again">Scan another photo</button>
+          </div>
+        </div>
+
+        <div class="progress" id="progress" hidden>
+          <div class="pips" id="pips" aria-hidden="true"></div>
+          <p id="progressText"></p>
+        </div>
+      </aside>
+    </section>
+
+    <section class="about" aria-label="About">
+      <div>
+        <h2>How a sweep works</h2>
+        <ol>
+          <li>Walk the edge of your home and yard, or your street.</li>
+          <li>Photograph anything that could hold water: tires, vases, bottles, coconut shells and drains.</li>
+          <li>Scan each photo. Tip out, scrub or bin whatever gets flagged.</li>
+        </ol>
+      </div>
+      <div>
+        <h2>What it can and can't do</h2>
+        <p>It recognises five kinds of container: tires, vases, bottles, coconut shells and drain inlets. It can't tell whether they hold water.</p>
+        <p>The model is YOLOv8n, trained on 1,828 photos from the open VisText-Mosquito dataset. On that dataset's held-out test photos it scored mAP50 0.926 (183 images). Those photos come from the same collection as the training set, so expect lower accuracy on your own street.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Data: Sayeedi Faiyaz &amp; Jisan, <em>VisText-Mosquito</em>, Mendeley Data, V3, DOI <a href="https://doi.org/10.17632/rtsfh7jh7p.3">10.17632/rtsfh7jh7p.3</a>, licensed <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.</p>
+    <p>Built with open-source tools: YOLOv8 (Ultralytics, AGPL-3.0), FastAPI and PyTorch.</p>
+  </footer>
+</div>
+
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  const SUN = '#FFC83D', DEEP = '#0C1710';
+  const GOAL = 5, MAX_BYTES = 25 * 1024 * 1024;
+
+  const INFO = {
+    'Tire':            {one:'Tire',          many:'Tires',          tip:'Tip out the water. Store tires under cover, or drill drain holes in the ones you keep outside.'},
+    'Vase':            {one:'Vase',          many:'Vases',          tip:'Empty it and scrub the sides. Change the water at least once a week.'},
+    'Bottle':          {one:'Bottle',        many:'Bottles',        tip:'Tip it out and bin it, or store it upside down.'},
+    'Coconut-Exocarp': {one:'Coconut shell', many:'Coconut shells', tip:'Break shells up and bin them, or keep them dry and covered.'},
+    'Drain-Inlet':     {one:'Drain inlet',   many:'Drain inlets',   tip:'Clear leaves and mud so water runs through instead of pooling.'}
+  };
+  const info = c => INFO[c] || {one:c, many:c, tip:'Check this one by eye and tip out any standing water.'};
+  const spotWord = n => n === 1 ? 'spot' : 'spots';
+
+  const $ = id => document.getElementById(id);
+  const el = {
+    theme:$('theme'), drop:$('drop'), cam:$('cam'), lib:$('lib'), btnCam:$('btnCam'), btnLib:$('btnLib'),
+    viewer:$('viewer'), view:$('view'), busy:$('busy'), busyText:$('busyText'),
+    panel:$('panel'), empty:$('empty'), loading:$('loading'), results:$('results'),
+    status:$('status'), thr:$('thr'), thrOut:$('thrOut'), finds:$('finds'),
+    copy:$('copy'), again:$('again'), progress:$('progress'), pips:$('pips'), progressText:$('progressText'),
+    error:$('error'), toasts:$('toasts')
+  };
+  const state = {base:null, w:0, h:0, dets:[], thr:0.25, focus:null, photos:0, spots:0, timer:null};
+  const visible = () => state.dets.filter(d => d.conf >= state.thr);
+
+  /* ---------- small helpers ---------- */
+  function enter(node){
+    node.classList.remove('enter');
+    void node.offsetWidth;
+    node.classList.add('enter');
+  }
+
+  function toast(msg, type){
+    const t = document.createElement('div');
+    t.className = 'toast' + (type === 'error' ? ' error' : '');
+    const text = document.createElement('span');
+    text.textContent = msg;
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'toast-x';
+    x.setAttribute('aria-label', 'Dismiss message');
+    x.textContent = '\u00D7';
+    const close = () => t.remove();
+    x.addEventListener('click', close);
+    t.append(text, x);
+    el.toasts.append(t);
+    setTimeout(close, 4500);
+  }
+
+  /* ---------- theme ---------- */
+  const root = document.documentElement;
+  function paintThemeBtn(){
+    el.theme.setAttribute('aria-label', root.dataset.theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+  }
+  el.theme.addEventListener('click', () => {
+    const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
+    root.dataset.theme = next;
+    try{ localStorage.setItem('sweep-theme', next); }catch(_){}
+    paintThemeBtn();
+  });
+  paintThemeBtn();
+
+  /* ---------- drawing ---------- */
+  function draw(){
+    if(!state.base) return;
+    const {w, h} = state, cv = el.view;
+    cv.width = w; cv.height = h;
+    const ctx = cv.getContext('2d');
+    ctx.drawImage(state.base, 0, 0);
+
+    const lw = Math.max(3, Math.round(w / 280));
+    const fs = Math.max(13, Math.round(w / 46));
+    ctx.font = `700 ${fs}px "Atkinson Hyperlegible", system-ui, sans-serif`;
+    ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+
+    visible().forEach(d => {
+      const [x1, y1, x2, y2] = d.box;
+      const x = x1 * w, y = y1 * h, bw = (x2 - x1) * w, bh = (y2 - y1) * h;
+      const on = state.focus === d.label;
+
+      // dark under-stroke keeps the sunlight-yellow readable on bright photos
+      ctx.lineWidth = lw + 4 + (on ? 4 : 0);
+      ctx.strokeStyle = DEEP;
+      ctx.strokeRect(x, y, bw, bh);
+      ctx.lineWidth = lw + (on ? 3 : 0);
+      ctx.strokeStyle = SUN;
+      ctx.strokeRect(x, y, bw, bh);
+
+      // survey-flag pennant label
+      const text = `${info(d.label).one} ${Math.round(d.conf * 100)}%`;
+      const ph = fs * 1.75, pw = ctx.measureText(text).width + fs * 1.7;
+      const px = Math.max(0, Math.min(x, w - pw));
+      const py = y - ph >= 0 ? y - ph : Math.min(y, h - ph);
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.lineTo(px + pw, py);
+      ctx.lineTo(px + pw - ph * 0.36, py + ph / 2);
+      ctx.lineTo(px + pw, py + ph);
+      ctx.lineTo(px, py + ph);
+      ctx.closePath();
+      ctx.fillStyle = SUN;
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = DEEP;
+      ctx.stroke();
+      ctx.fillStyle = DEEP;
+      ctx.fillText(text, px + fs * 0.6, py + ph / 2 + 1);
+    });
+  }
+
+  /* ---------- panel states ---------- */
+  function panel(s){
+    el.empty.hidden = s !== 'empty';
+    el.loading.hidden = s !== 'loading';
+    el.results.hidden = s !== 'results';
+    el.panel.setAttribute('aria-busy', String(s === 'loading'));
+    enter({empty:el.empty, loading:el.loading, results:el.results}[s]);
+  }
+
+  function groups(){
+    const counts = new Map();
+    visible().forEach(d => counts.set(d.label, (counts.get(d.label) || 0) + 1));
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  }
+
+  function render(){
+    const n = visible().length;
+    el.status.textContent = n === 0
+      ? 'No containers spotted in this photo. Lower the slider, or try a closer shot in daylight.'
+      : `Found ${n} possible breeding ${spotWord(n)}.`;
+    el.view.setAttribute('aria-label', `Your photo with ${n} flagged ${spotWord(n)}`);
+    el.copy.hidden = n === 0;
+    el.finds.replaceChildren();
+
+    groups().forEach(([cls, count]) => {
+      const i = info(cls);
+      const li = document.createElement('li');
+      li.tabIndex = 0;
+
+      const head = document.createElement('div');
+      head.className = 'find-head';
+      const badge = document.createElement('span');
+      badge.className = 'n';
+      badge.textContent = count;
+      const name = document.createElement('strong');
+      name.textContent = count === 1 ? i.one : i.many;
+      head.append(badge, name);
+
+      const tip = document.createElement('p');
+      tip.className = 'tip';
+      tip.textContent = i.tip;
+
+      li.append(head, tip);
+      ['mouseenter', 'focus'].forEach(ev => li.addEventListener(ev, () => { state.focus = cls; draw(); }));
+      ['mouseleave', 'blur'].forEach(ev => li.addEventListener(ev, () => { state.focus = null; draw(); }));
+      el.finds.append(li);
+    });
+  }
+
+  function updateProgress(){
+    const p = state.photos, s = state.spots;
+    el.pips.replaceChildren();
+    for(let i = 0; i < GOAL; i++){
+      const pip = document.createElement('span');
+      pip.className = 'pip' + (i < p ? ' on' : '');
+      el.pips.append(pip);
+    }
+    el.progressText.textContent = p >= GOAL
+      ? `${p} photos, ${s} ${spotWord(s)} flagged. That counts as a proper walk.`
+      : `${p} of ${GOAL} photos on this walk, ${s} ${spotWord(s)} flagged.`;
+    el.progress.hidden = false;
+  }
+
+  /* ---------- view switching ---------- */
+  function showDrop(){
+    el.viewer.hidden = true;
+    el.drop.hidden = false;
+    enter(el.drop);
+    panel('empty');
+  }
+  function showViewer(){
+    el.drop.hidden = true;
+    el.viewer.hidden = false;
+    enter(el.viewer);
+    panel('loading');
+  }
+  function showError(msg){ el.error.textContent = msg; el.error.hidden = false; }
+  function hideError(){ el.error.hidden = true; }
+
+  function setBusy(on){
+    clearTimeout(state.timer);
+    el.busy.hidden = !on;
+    if(on){
+      el.busyText.textContent = 'Scanning your photo.';
+      state.timer = setTimeout(() => {
+        el.busyText.textContent = 'Still working. The free server may have been asleep, so the first scan can take up to a minute.';
+      }, 5000);
+    }
+  }
+
+  /* ---------- photo in, detections out ---------- */
+  async function prepare(file){
+    const url = URL.createObjectURL(file);
+    try{
+      const img = await new Promise((res, rej) => {
+        const i = new Image();
+        i.onload = () => res(i);
+        i.onerror = rej;
+        i.src = url;
+      });
+      const s = Math.min(1, 1280 / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.round(img.naturalWidth * s), h = Math.round(img.naturalHeight * s);
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.9));
+      return {canvas:c, blob, w, h};
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  async function scan(blob){
+    const fd = new FormData();
+    fd.append('file', blob, 'photo.jpg');
+    fd.append('conf', '0.10'); // ask low once; the slider filters on this page
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 150000);
+    try{
+      const res = await fetch('/api/detect', {method:'POST', body:fd, signal:ctrl.signal});
+      if(!res.ok){
+        let msg = "Couldn't scan that photo. Try again.";
+        try{ const j = await res.json(); if(typeof j.detail === 'string') msg = j.detail; }catch(_){}
+        throw new Error(msg);
+      }
+      return await res.json();
+    } finally {
+      clearTimeout(t);
+    }
+  }
+
+  function validate(file){
+    if(!file) return 'No photo selected. Take one or choose one from your gallery.';
+    if(file.size === 0) return 'That file is empty. Choose a different photo.';
+    if(!file.type.startsWith('image/')) return "That file isn't a photo. Choose a JPG, PNG or WebP.";
+    if(file.size > MAX_BYTES) return 'That photo is over 25 MB. Choose a smaller one.';
+    return '';
+  }
+
+  async function handle(file){
+    hideError();
+    const problem = validate(file);
+    if(problem){ if(file) showError(problem); return; }
+
+    let prep;
+    try{
+      prep = await prepare(file);
+    }catch(_){
+      showError("Couldn't open that photo. Try a JPG or PNG.");
+      return;
+    }
+    Object.assign(state, {base:prep.canvas, w:prep.w, h:prep.h, dets:[], focus:null});
+    showViewer();
+    draw();
+    setBusy(true);
+    try{
+      const data = await scan(prep.blob);
+      state.dets = data.detections;
+      const found = visible().length;
+      state.photos += 1;
+      state.spots += found;
+      setBusy(false);
+      render();
+      draw();
+      panel('results');
+      updateProgress();
+      toast(found === 0 ? 'Scan done. Nothing flagged in this one.' : `Scan done. ${found} ${spotWord(found)} flagged.`);
+    }catch(e){
+      setBusy(false);
+      showDrop();
+      showError(e.name === 'AbortError'
+        ? 'The scan took too long. Try again in a moment.'
+        : (e.message || "Couldn't scan that photo. Check your connection and try again."));
+    }
+  }
+
+  async function copyList(){
+    const g = groups();
+    if(!g.length) return;
+    const lines = g.map(([cls, c]) => `- ${c} x ${c === 1 ? info(cls).one : info(cls).many}: ${info(cls).tip}`);
+    const text = `Backyard Sweep to-do (${visible().length} ${spotWord(visible().length)})\n` + lines.join('\n');
+    try{
+      await navigator.clipboard.writeText(text);
+      toast('To-do list copied.');
+    }catch(_){
+      toast("Couldn't copy. Your browser blocked it.", 'error');
+    }
+  }
+
+  /* ---------- events ---------- */
+  el.btnCam.addEventListener('click', () => el.cam.click());
+  el.btnLib.addEventListener('click', () => el.lib.click());
+  [el.cam, el.lib].forEach(inp => inp.addEventListener('change', () => {
+    const f = inp.files[0];
+    inp.value = '';
+    handle(f);
+  }));
+  el.again.addEventListener('click', () => { hideError(); showDrop(); el.btnCam.focus(); });
+  el.copy.addEventListener('click', copyList);
+
+  el.thr.addEventListener('input', () => {
+    state.thr = el.thr.value / 100;
+    el.thrOut.textContent = el.thr.value + '%';
+    render();
+    draw();
+  });
+
+  ['dragenter', 'dragover'].forEach(ev => el.drop.addEventListener(ev, e => { e.preventDefault(); el.drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(ev => el.drop.addEventListener(ev, e => { e.preventDefault(); el.drop.classList.remove('over'); }));
+  el.drop.addEventListener('drop', e => handle(e.dataTransfer.files[0]));
+
+  /* ---------- go outside check (optional, rule-based) ---------- */
+  const wet = c => (c >= 51 && c <= 67) || (c >= 80 && c <= 82) || (c >= 95 && c <= 99);
+  function skyShow(head, body, note){
+    $('skyHead').textContent = head;
+    $('skyBody').textContent = body + (note ? ' ' + note : '');
+  }
+  function clockAdvice(){
+    const h = new Date().getHours();
+    if(h < 6 || h >= 19) return ['It is dark or close to it.', 'Save the lap for morning. Early morning and late afternoon are the best times to check containers.'];
+    if(h >= 10 && h < 16) return ['Midday sun. Keep the lap short.', 'Ten minutes in the shade is enough to check the obvious spots. Drink water first.'];
+    return ['Good window. Walk a lap of your home now.', 'Cover up, since Aedes mosquitoes bite in daylight, and photograph anything that could hold water.'];
+  }
+  function weatherAdvice(w){
+    const c = w.current;
+    const rain = ((w.daily && w.daily.precipitation_sum) || []).reduce((a, b) => a + (b || 0), 0);
+    let head, body;
+    if(c.precipitation > 0 || wet(c.weather_code)){ head = 'Rain is falling. Wait it out.'; body = 'Do your lap when it stops. Fresh rain refills containers, so the check matters.'; }
+    else if(!c.is_day){ head = 'It is dark out. Save the lap for morning.'; body = 'Early morning is a good time to check containers, before the heat builds.'; }
+    else if(c.apparent_temperature >= 36){ head = 'Too hot for a long walk.'; body = 'Keep it to ten minutes in the shade, or go after 4:30 pm. Drink water first.'; }
+    else { head = 'Good window. Walk a lap of your home now.'; body = 'Cover up, since Aedes mosquitoes bite in daylight, and photograph anything that could hold water.'; }
+    if(rain >= 2) body += ' About ' + Math.round(rain) + ' mm of rain fell in the last day, so containers may have refilled.';
+    return [head, body];
+  }
+  async function getWeather(lat, lon){
+    const u = new URL('https://api.open-meteo.com/v1/forecast');
+    u.search = new URLSearchParams({
+      latitude: lat.toFixed(2), longitude: lon.toFixed(2),
+      current: 'temperature_2m,apparent_temperature,precipitation,weather_code,is_day',
+      daily: 'precipitation_sum', past_days: '1', forecast_days: '1', timezone: 'auto'
+    }).toString();
+    const r = await fetch(u);
+    if(!r.ok) throw new Error('weather');
+    return r.json();
+  }
+  $('skyBtn').addEventListener('click', () => {
+    const btn = $('skyBtn');
+    if(!('geolocation' in navigator)){ skyShow(...clockAdvice(), 'This browser has no location access, so this uses your clock only.'); return; }
+    btn.disabled = true;
+    btn.textContent = 'Checking...';
+    navigator.geolocation.getCurrentPosition(async pos => {
+      try{ skyShow(...weatherAdvice(await getWeather(pos.coords.latitude, pos.coords.longitude))); }
+      catch(_){ skyShow(...clockAdvice(), 'The weather service did not respond, so this uses your clock only.'); }
+      finally{ btn.disabled = false; btn.textContent = 'Check again'; }
+    }, () => {
+      skyShow(...clockAdvice(), 'Location is off for this page, so this uses your clock only.');
+      btn.disabled = false;
+      btn.textContent = 'Check the sky';
+    }, {timeout: 8000, maximumAge: 600000});
+  });
+})();
+</script>
+</body>
+</html>
