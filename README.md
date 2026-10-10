@@ -170,8 +170,7 @@ LICENSE            AGPL-3.0
 - Test and report accuracy on photos from Indian homes.
 
 ## Credits and licence
-
-- **Dataset:** Md Faiyaz Abdullah Sayeedi Faiyaz and Md Adnanul Jisan, *VisText-Mosquito*, Mendeley Data, V3, DOI [10.17632/rtsfh7jh7p.3](https://doi.org/10.17632/rtsfh7jh7p.3), licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+- **Dataset:** Faiyaz, Md Faiyaz Abdullah Sayeedi; Jisan, Md Adnanul (2025). *VisText-Mosquito: A Multimodal Dataset for Mosquito Breeding Site Detection, Surface Segmentation, and Reasoning*. Mendeley Data, V3. DOI [10.17632/rtsfh7jh7p.3](https://doi.org/10.17632/rtsfh7jh7p.3). Licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 - **Model code:** [Ultralytics YOLOv8](https://github.com/ultralytics/ultralytics), AGPL-3.0.
 - **Weather:** [Open-Meteo](https://open-meteo.com/), used only by the optional go-outside check.
 - **This project:** released under AGPL-3.0. See `LICENSE`.
