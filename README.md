@@ -66,7 +66,7 @@ The page shrinks the photo, sends it to `POST /api/detect`, and draws the return
 
 ## Model and results
 
-YOLOv8n, trained for 30 epochs at 640 px on the **Breeding Place Detection** part of the VisText-Mosquito dataset (1,828 images, five classes). Evaluated on the dataset's held-out test split: 183 images, 424 objects.
+YOLOv8n, trained for 30 epochs at 640 px on the **Breeding Place Detection** part of the VisText-Mosquito dataset (3,862 training images, 371 validation, 183 test, five classes). Evaluated on the dataset's held-out test split: 183 images, 424 objects.
 
 | Class | Test instances | AP50 |
 |---|---:|---:|
@@ -81,17 +81,31 @@ Precision 0.906, recall 0.844, mAP50-95 0.692.
 
 **Read these numbers carefully.** The test photos come from the same collection as the training photos (daylight scenes from Bangladesh). They show the model works on that kind of image. They do not guarantee the same accuracy on every home, street or camera. Confidence scores are not calibrated probabilities, and crowded scenes with many similar objects can score lower.
 
-<!-- FIELD TEST: after your walk, delete this comment marker and fill in your own numbers.
+I also trained a longer run (80 epochs, stopped early at epoch 78). It did not beat the 30-epoch model on the test split (mAP50 0.914 vs 0.926, recall 0.832 vs 0.844), so I kept the original.
 
-### Field test on real homes
+## Field test
 
-| Photos | Containers present | Found | Missed | False alarms |
-|---:|---:|---:|---:|---:|
-| 0 | 0 | 0 | 0 | 0 |
+I scanned 5 of my own photos (daylight, around my home) at the default 25% setting. This is a small sample, a sanity check and not a benchmark.
 
-What it got wrong, and what I would change:
--
--->
+- **Tires:** 1 of 3 found (2 clear, 1 partly hidden), at 41% confidence.
+- **False alarms:** in the same photo, a parked car was labelled "vase" at 87%, and a vague shape in a dark corner was labelled "coconut shell" at 70%. Both scored higher than the real tire, so raising the confidence slider does not fix this.
+- **Out-of-scope containers:** a dustbin was labelled "vase" at 83%, and paint buckets were labelled "vase" (1 at 25%, 3 at 10%). The label is wrong, but these are real water-holding containers, so the tip still applies.
+- **Misses:** in one photo, 2 terracotta water pots, a plastic bucket and a rooftop water tank got no flags even at 10%. An open drain channel also got nothing.
+
+The model works on the container types it was trained on. It does not cover common household containers like buckets, pots and tanks, and on photos unlike its training data its confidence scores are not a reliable filter.
+
+## Experiment: an open-vocabulary model
+
+I also tried YOLO-World (zero-shot, no training) with a word list I typed in. I chose the words after seeing my photos, so this is a demo, not a fair test.
+
+| | My fine-tuned YOLOv8n | YOLO-World (zero-shot) |
+|---|---:|---:|
+| mAP50 on the dataset test split | **0.926** | 0.297 |
+| Tire recall | 0.80 | 0.017 |
+| Drain-Inlet AP50 | 0.956 | 0.000 |
+| Parameters | about 3 million | about 164 million |
+
+On my own photos it found a clay pot (89%), a bucket (77%) and a water tank, which my model missed entirely. But it also called a parked car a "water tank" (62%) and a bathroom basin a "water tank" (72%). The two models are good at opposite things, so I kept the small one, which also fits a free server. The next step would be to use YOLO-World to pre-label household containers, fix the labels by hand, and fine-tune the small model on them.
 
 ## API
 
@@ -161,12 +175,13 @@ LICENSE            AGPL-3.0
 - It knows five container types. Buckets, water drums, pot saucers and many other breeding sites are not in the training data.
 - It is not a medical tool. It does not diagnose, treat or prevent dengue. Follow your local health department's guidance.
 - Tips are general advice about emptying, scrubbing, covering and binning containers.
+- Confidence scores are not a reliable filter on photos unlike the training data. In my field test, a parked car scored 87% as a "vase" while a real tire scored 41%.
 
 ## Ideas for next steps
 
 - Classify **water present or absent** using the dataset's water-segmentation subset.
 - Add classes for buckets and water drums, with new labelled photos.
-- Tune the default confidence threshold from the validation F1 curve.
+- Use an open-vocabulary model such as YOLO-World to pre-label buckets, pots and water tanks, fix the labels by hand, and fine-tune the small model on them.
 - Test and report accuracy on photos from Indian homes.
 
 ## Credits and licence
