@@ -103,9 +103,10 @@ I also tried YOLO-World (zero-shot, no training) with a word list I typed in. I 
 | mAP50 on the dataset test split | **0.926** | 0.297 |
 | Tire recall | 0.80 | 0.017 |
 | Drain-Inlet AP50 | 0.956 | 0.000 |
-| Parameters | about 3 million | about 164 million |
+| Parameters when loaded | about 3 million | about 164 million (includes its text encoder) |
+| Saved model file | about 6 MB | 329 MB |
 
-On my own photos it found a clay pot (89%), a bucket (77%) and a water tank, which my model missed entirely. But it also called a parked car a "water tank" (62%) and a bathroom basin a "water tank" (72%). The two models are good at opposite things, so I kept the small one, which also fits a free server. The next step would be to use YOLO-World to pre-label household containers, fix the labels by hand, and fine-tune the small model on them.
+On my own photos it found a clay pot (89%), a bucket (77%) and a water tank, which my model missed entirely. But it also called a parked car a "water tank" (62%) and a bathroom basin a "water tank" (72%). The two models are good at opposite things, so I kept the small one, which is far more accurate on its five classes. I also checked whether YOLO-World could run in the app. Even with the word list baked in, the saved model is a 329 MB file and used about 1.7 GB of RAM in my Colab test, far over the free server's 512 MB, so I did not deploy it. The next step would be to use YOLO-World to pre-label household containers, fix the labels by hand, and fine-tune the small model on them.
 
 ## API
 
