@@ -15,9 +15,7 @@ Photograph anything around your home that could hold water. A YOLOv8 detector fl
 
 Built for the Hacktoberfest 2026 Open-Source AI Challenge, Week 1: **Touch Grass**.
 
-<!-- Add a screenshot or GIF here once you have one:
-![Backyard Sweep scanning a photo](docs/demo.gif)
--->
+[Backyard Sweep scanning a photo](docs/demo.png)
 
 ## Contents
 
