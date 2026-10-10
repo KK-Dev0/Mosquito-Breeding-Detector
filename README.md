@@ -134,7 +134,7 @@ Example response shape (values are illustrative):
 ## Why open source mattered
 
 - **A small model for one job.** YOLOv8n is trained on exactly five container types and runs on a free CPU instance. There is no per-photo API fee.
-- **You control where photos go.** Detection happens in a server you run, not in a third-party AI service. Self-hosting is one command (below). Detection needs no internet once installed. Only the optional weather card and web fonts call out.
+- **You control where photos go.** Detection happens in a server you run, not in a third-party AI service. Self-hosting is one command (below). Detection runs on a server you control. Only the optional weather card and web fonts call out.
 - **Swappable.** Replace `best.pt` with a retrained model and the app keeps working, because the contract is just labels, scores and boxes.
 - **Inspectable.** Code, weights, dataset and licences are all public, so every claim in this README can be checked.
 - **The trade-off.** Ultralytics YOLO is AGPL-3.0, so this project is released under AGPL-3.0 too.
