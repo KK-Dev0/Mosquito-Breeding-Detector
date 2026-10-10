@@ -343,13 +343,14 @@
       <div>
         <h2>What it can and can't do</h2>
         <p>It recognises five kinds of container: tires, vases, bottles, coconut shells and drain inlets. It can't tell whether they hold water.</p>
-        <p>The model is YOLOv8n, trained on 1,828 photos from the open VisText-Mosquito dataset. On that dataset's held-out test photos it scored mAP50 0.926 (183 images). Those photos come from the same collection as the training set, so expect lower accuracy on your own street.</p>
+        <p>The model is YOLOv8n, trained on 3,862 images from the open VisText-Mosquito dataset. On that dataset's held-out test photos it scored mAP50 0.926 (183 images). Those photos come from the same collection as the training set, so expect lower accuracy on your own street.</p>
+        <p>In my own photos it found one tire but also mistook a car for a vase, and it found nothing on clay pots, a bucket or a water tank. The README has the full field test.</p>
       </div>
     </section>
   </main>
 
   <footer>
-    <p>Data: Sayeedi Faiyaz &amp; Jisan, <em>VisText-Mosquito</em>, Mendeley Data, V3, DOI <a href="https://doi.org/10.17632/rtsfh7jh7p.3">10.17632/rtsfh7jh7p.3</a>, licensed <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.</p>
+    <p>Data: Faiyaz, Md Faiyaz Abdullah Sayeedi; Jisan, Md Adnanul (2025), <em>VisText-Mosquito: A Multimodal Dataset for Mosquito Breeding Site Detection, Surface Segmentation, and Reasoning</em>, Mendeley Data, V3, DOI <a href="https://doi.org/10.17632/rtsfh7jh7p.3">10.17632/rtsfh7jh7p.3</a>, licensed <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.</p>
     <p>Built with open-source tools: YOLOv8 (Ultralytics, AGPL-3.0), FastAPI and PyTorch.</p>
   </footer>
 </div>
@@ -688,7 +689,7 @@
   }
   function clockAdvice(){
     const h = new Date().getHours();
-    if(h < 6 || h >= 19) return ['It is dark or close to it.', 'Save the lap for morning. Early morning and late afternoon are the best times to check containers.'];
+    if(h < 6 || h >= 19) return ['It is dark or close to it.', 'Save the lap for morning, when it is cooler and the light is good for photos.'];
     if(h >= 10 && h < 16) return ['Midday sun. Keep the lap short.', 'Ten minutes in the shade is enough to check the obvious spots. Drink water first.'];
     return ['Good window. Walk a lap of your home now.', 'Cover up, since Aedes mosquitoes bite in daylight, and photograph anything that could hold water.'];
   }
@@ -697,10 +698,10 @@
     const rain = ((w.daily && w.daily.precipitation_sum) || []).reduce((a, b) => a + (b || 0), 0);
     let head, body;
     if(c.precipitation > 0 || wet(c.weather_code)){ head = 'Rain is falling. Wait it out.'; body = 'Do your lap when it stops. Fresh rain refills containers, so the check matters.'; }
-    else if(!c.is_day){ head = 'It is dark out. Save the lap for morning.'; body = 'Early morning is a good time to check containers, before the heat builds.'; }
+    else if(!c.is_day){ head = 'It is dark out. Save the lap for morning.'; body = 'Morning is cooler, and the light is better for photos.'; }
     else if(c.apparent_temperature >= 36){ head = 'Too hot for a long walk.'; body = 'Keep it to ten minutes in the shade, or go after 4:30 pm. Drink water first.'; }
     else { head = 'Good window. Walk a lap of your home now.'; body = 'Cover up, since Aedes mosquitoes bite in daylight, and photograph anything that could hold water.'; }
-    if(rain >= 2) body += ' About ' + Math.round(rain) + ' mm of rain fell in the last day, so containers may have refilled.';
+    if(rain >= 2) body += ' About ' + Math.round(rain) + ' mm of rain fell or is forecast for yesterday and today, so containers may have refilled.';
     return [head, body];
   }
   async function getWeather(lat, lon){
